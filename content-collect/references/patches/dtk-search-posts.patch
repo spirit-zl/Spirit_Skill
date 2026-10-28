@@ -1,0 +1,657 @@
+diff --git a/src/dtk/api/routes/content.py b/src/dtk/api/routes/content.py
+index 0e5131b..b63cf77 100644
+--- a/src/dtk/api/routes/content.py
++++ b/src/dtk/api/routes/content.py
+@@ -52,7 +52,7 @@ from dtk.core.errors import (
+ from dtk.core.logging import get_logger
+ from dtk.core.types import Platform, Scope
+ from dtk.i18n.messages import render_error
+-from dtk.platforms.paging import max_page_size
++from dtk.platforms.paging import max_page_size, max_search_page_size
+ from dtk.urls import ResourceKind, UrlKind, first_url, identify, require_content_id
+ from dtk.worker import registry
+ 
+@@ -172,6 +172,14 @@ COMMENT_ID_QUERY = Query(
+     max_length=64,
+     description="The parent comment whose replies you want; ids come from the comments endpoint.",
+ )
++KEYWORD_QUERY = Query(
++    min_length=1,
++    max_length=128,
++    description=(
++        "What to search for. Matched against post text and topics the way the "
++        "platform's own search box matches it."
++    ),
++)
+ 
+ 
+ def read_scope(platform: Platform) -> Scope:
+@@ -1418,6 +1426,81 @@ async def user_following(
+     )
+ 
+ 
++@router.get(
++    "/{platform}/search/posts",
++    summary="Search posts by keyword",
++    openapi_extra={I18N_KEY: "search_posts", **ASYNC_RESPONSES},
++)
++async def search_posts(
++    request: Request,
++    platform: Platform = PLATFORM_PATH,
++    keyword: str = KEYWORD_QUERY,
++    cursor: str | None = CURSOR_QUERY,
++    count: int | None = COUNT_QUERY,
++    include_raw: bool = RAW_QUERY,
++    wait: float | None = WAIT_QUERY,
++    proxy: str | None = PROXY_QUERY,
++    identity: str | None = IDENTITY_QUERY,
++    refresh: bool = REFRESH_QUERY,
++    explain: bool = EXPLAIN_QUERY,
++    principal: Principal = Depends(enforce_rate_limit),
++) -> Any:
++    """One page of posts matching a keyword, in the platform's own relevance order.
++
++    This is the endpoint that answers a question rather than fetching something
++    already named: nothing here has an id to pass, so `keyword` is the whole
++    request. Douyin only - TikTok's search is not implemented in this build and
++    is refused with the platforms that do serve this operation, rather than
++    answered with an empty page.
++
++    **Parameters**
++
++    - `platform` - `douyin`. The keyword must be what a person would type into
++      the app's search box; matching is the platform's, not ours.
++    - `keyword` - what to look for, matched against post text and topics.
++    - `cursor` - the cursor returned by the previous page. Omit it for the
++      first page; a response with no cursor is the last page.
++    - `count` - how many posts to aim for. This endpoint's ceiling is 30, not
++      the 50 the other Douyin lists serve: above 30 Douyin answers with an
++      empty page rather than refusing, which would read as "this keyword
++      matched nothing". The page can still come back shorter, because results
++      are a mixed feed the platform pads with non-post entries.
++    - `include_raw` - include each item's untouched platform payload. A page
++      carries one per item, so this multiplies the response and everything
++      that stores it; it is off by default for that reason.
++    - `wait` - seconds to wait for the result. Omit it to get `202` and a task
++      id to poll.
++    - `identity` - send the request as this identity and no other. For content
++      only one account can see. Requires `identity:manage`.
++    - `refresh` - ignore any cached or in-flight answer and ask upstream
++      again. Without it a repeat inside `cache.list_ttl` (5 minutes by default)
++      is answered from the cache and costs nothing; a refresh costs an
++      identity and a real request, and its answer is cached in turn.
++
++    **Returns**
++
++    The same post shape as `/video`, one entry per post, plus the cursor for
++    the next page.
++    """
++    authorize(principal, platform)
++    return await operations.submit_and_wait(
++        request,
++        principal,
++        endpoint=supported(platform, Operation.SEARCH_POSTS),
++        params={
++            "keyword": keyword,
++            "cursor": cursor,
++            "count": resolve_count(count, maximum=max_search_page_size(platform)),
++            "include_raw": include_raw,
++        },
++        wait=resolve_wait(request, wait),
++        proxy=await resolve_request_proxy(request, proxy),
++        refresh=refresh,
++        explain=await resolve_explain(request, principal, explain),
++        identity=await resolve_request_identity(request, principal, identity, platform=platform),
++    )
++
++
+ # --------------------------------------------------------------------------
+ # Parameter assembly
+ # --------------------------------------------------------------------------
+diff --git a/src/dtk/api/routes/operations.py b/src/dtk/api/routes/operations.py
+index 55cd420..d90b962 100644
+--- a/src/dtk/api/routes/operations.py
++++ b/src/dtk/api/routes/operations.py
+@@ -76,6 +76,10 @@ class Operation(StrEnum):
+     AUTHOR_REPOSTS = "author_reposts"
+     COLLECTION_DETAIL = "collection_detail"
+     MIX_POSTS = "mix_posts"
++    #: Keyword search. Names no resource, so it is the one read operation with
++    #: no ``url``/id alternative in the query vocabulary - ``keyword`` is the
++    #: whole request.
++    SEARCH_POSTS = "search_posts"
+     AUTHOR_FOLLOWERS = "author_followers"
+     AUTHOR_FOLLOWING = "author_following"
+ 
+diff --git a/src/dtk/i18n/locales/en.json b/src/dtk/i18n/locales/en.json
+index f088a9f..91b713c 100644
+--- a/src/dtk/i18n/locales/en.json
++++ b/src/dtk/i18n/locales/en.json
+@@ -510,6 +510,10 @@
+         "summary": "Read the request log",
+         "description": "Recent requests, newest first, filtered."
+       },
++      "search_posts": {
++        "summary": "Search posts by keyword",
++        "description": "One page of posts matching a keyword, in the platform's own relevance order, in the same shape as the single post endpoint. Douyin only: TikTok's search is not implemented in this build and is refused rather than answered with an empty page. Page through with cursor."
++      },
+       "settings_list": {
+         "summary": "Read every runtime setting",
+         "description": "Every runtime setting, with its current value and where that came from."
+@@ -626,6 +630,7 @@
+       "include_raw": "Also return the platform's own untouched payload alongside the normalized record.",
+       "key": "The setting to act on, as shown by the list endpoint.",
+       "key_id": "The key to revoke.",
++      "keyword": "What to search for. Matched against post text and topics the way the platform's own search box matches it.",
+       "kind": "Only entries of this kind.",
+       "lang": "Response language for human-readable text. One of en or zh; anything else falls back to en.",
+       "limit": "Maximum rows to return.",
+diff --git a/src/dtk/i18n/locales/zh.json b/src/dtk/i18n/locales/zh.json
+index 9068546..129c34a 100644
+--- a/src/dtk/i18n/locales/zh.json
++++ b/src/dtk/i18n/locales/zh.json
+@@ -510,6 +510,10 @@
+         "summary": "读取请求日志",
+         "description": "最近的请求，最新的在前，可按条件筛选。"
+       },
++      "search_posts": {
++        "summary": "按关键词搜索作品",
++        "description": "按平台自身的相关度排序，分页获取与关键词匹配的作品，字段结构与单条作品接口一致。仅支持抖音：本版本未实现 TikTok 的搜索，会明确报错而不是返回空页。通过 cursor 翻页。"
++      },
+       "settings_list": {
+         "summary": "读取全部运行时设置",
+         "description": "每一项运行时设置，含当前值及其来源。"
+@@ -626,6 +630,7 @@
+       "include_raw": "在归一化结果之外，同时返回平台自身的原始响应。",
+       "key": "要操作的配置项，取值见列表接口。",
+       "key_id": "要吊销的密钥 ID。",
++      "keyword": "搜索词。按平台搜索框自身的匹配方式，对作品文案与话题进行匹配。",
+       "kind": "仅返回该类型的条目。",
+       "lang": "人类可读文本的响应语言，可选 en 或 zh，其余值一律回退英文。",
+       "limit": "最多返回多少条。",
+diff --git a/src/dtk/platforms/base.py b/src/dtk/platforms/base.py
+index 1f51021..cb91642 100644
+--- a/src/dtk/platforms/base.py
++++ b/src/dtk/platforms/base.py
+@@ -431,6 +431,10 @@ class PlatformAdapter(Protocol):
+         self, payload: Mapping[str, Any], *, fetched_at: datetime
+     ) -> Page[Content]: ...
+ 
++    def parse_search_posts(
++        self, payload: Mapping[str, Any], *, fetched_at: datetime
++    ) -> Page[Content]: ...
++
+     def parse_author_list(self, payload: Mapping[str, Any]) -> Page[Author]: ...
+ 
+     def parse_author_collections(self, payload: Mapping[str, Any]) -> Page[Collection]: ...
+diff --git a/src/dtk/platforms/douyin/adapter.py b/src/dtk/platforms/douyin/adapter.py
+index 5a2c272..8b39fbf 100644
+--- a/src/dtk/platforms/douyin/adapter.py
++++ b/src/dtk/platforms/douyin/adapter.py
+@@ -57,6 +57,11 @@ class DouyinAdapter:
+     ) -> Page[Content]:
+         return parser.parse_author_posts(payload, fetched_at=fetched_at)
+ 
++    def parse_search_posts(
++        self, payload: Mapping[str, Any], *, fetched_at: datetime
++    ) -> Page[Content]:
++        return parser.parse_search_posts(payload, fetched_at=fetched_at)
++
+     def parse_author_list(self, payload: Mapping[str, Any]) -> Page[Author]:
+         """Douyin does not serve a follow graph to a guest identity.
+ 
+diff --git a/src/dtk/platforms/douyin/endpoints.py b/src/dtk/platforms/douyin/endpoints.py
+index 7a7beb3..a272efa 100644
+--- a/src/dtk/platforms/douyin/endpoints.py
++++ b/src/dtk/platforms/douyin/endpoints.py
+@@ -26,6 +26,7 @@ from dtk.platforms.douyin.params import (
+     comments_params,
+     content_detail_params,
+     mix_posts_params,
++    search_posts_params,
+     session_check_params,
+ )
+ 
+@@ -200,6 +201,7 @@ AUTHOR_LIKES: Final = "douyin.author_likes"
+ AUTHOR_COLLECTIONS: Final = "douyin.author_collections"
+ COLLECTION_POSTS: Final = "douyin.collection_posts"
+ MIX_POSTS: Final = "douyin.mix_posts"
++SEARCH_POSTS: Final = "douyin.search_posts"
+ SESSION_CHECK: Final = "douyin.session_check"
+ 
+ #: Sent on every Douyin request. Cookies and User-Agent are injected by the
+@@ -309,6 +311,18 @@ ENDPOINTS: Final = EndpointTable.of(
+         risk_weight=1.5,
+         summary="Replies under one comment",
+     ),
++    EndpointSpec(
++        name=SEARCH_POSTS,
++        path=DouyinAPIEndpoints.GENERAL_SEARCH,
++        required=("keyword",),
++        build=search_posts_params,
++        # The highest weight in this table. Paging a keyword search is the most
++        # bot-shaped thing a caller can ask for - a browser searches once and
++        # clicks a result, it does not walk offset 0,20,40,60 in a minute - so
++        # the scheduler should meter it harder than a timeline walk.
++        risk_weight=2.5,
++        summary="Keyword search across posts, paged by offset",
++    ),
+ )
+ 
+ 
+@@ -324,5 +338,6 @@ __all__ = [
+     "DEFAULT_HEADERS",
+     "ENDPOINTS",
+     "MIX_POSTS",
++    "SEARCH_POSTS",
+     "DouyinAPIEndpoints",
+ ]
+diff --git a/src/dtk/platforms/douyin/params.py b/src/dtk/platforms/douyin/params.py
+index 9e5c789..b3dec6f 100644
+--- a/src/dtk/platforms/douyin/params.py
++++ b/src/dtk/platforms/douyin/params.py
+@@ -356,15 +356,62 @@ def _cursor(cursor: str | None) -> str:
+     return text or "0"
+ 
+ 
++#: ``search_channel`` values the web client sends. ``aweme_general`` is the
++#: mixed feed (posts, users, live rooms together); ``aweme_video`` restricts it
++#: to posts. Only the general one is wired up, because the parser skips the
++#: non-post entries anyway and the restricted channel returns strictly less.
++SEARCH_CHANNEL_GENERAL: Final = "aweme_general"
++
++
++def search_posts_params(
++    *,
++    keyword: str,
++    cursor: str | None = None,
++    count: int = DEFAULT_PAGE_SIZE,
++    search_channel: str = SEARCH_CHANNEL_GENERAL,
++    profile: ClientProfile = DEFAULT_PROFILE,
++) -> dict[str, str]:
++    """Parameters for ``/aweme/v1/web/general/search/single/``.
++
++    Douyin's search pages by a plain numeric ``offset``, not by the
++    ``max_cursor`` timestamp its post list uses - so the cursor handed to a
++    caller is that offset, stringified and treated as opaque like every other
++    cursor in this project.
++
++    The five ``*_filter``/``sort`` fields are sent even when they are the
++    defaults. They are not decoration: the web client always includes them, and
++    a request that omits them is a request shaped differently from any browser's.
++    """
++    return {
++        **base_params(profile),
++        "keyword": keyword,
++        "search_channel": search_channel,
++        "offset": _cursor(cursor),
++        "count": str(count),
++        "is_filter_search": "0",
++        "sort_type": "0",
++        "publish_time": "0",
++        "filter_duration": "0",
++        "search_source": "normal_search",
++        "query_correct_type": "1",
++    }
++
++
+ __all__ = [
+     "AID",
+     "DEFAULT_PAGE_SIZE",
+     "DEFAULT_PROFILE",
++    "SEARCH_CHANNEL_GENERAL",
++    "author_collections_params",
++    "author_likes_params",
+     "author_posts_params",
+     "author_profile_params",
+     "base_params",
+     "comment_replies_params",
+     "comments_params",
+     "content_detail_params",
++    "mix_posts_params",
+     "profile_for",
++    "search_posts_params",
++    "session_check_params",
+ ]
+diff --git a/src/dtk/platforms/douyin/parser.py b/src/dtk/platforms/douyin/parser.py
+index ec2e802..d7b3eb3 100644
+--- a/src/dtk/platforms/douyin/parser.py
++++ b/src/dtk/platforms/douyin/parser.py
+@@ -25,11 +25,11 @@ Douyin has a single ``desc`` field, so ``title`` is its first non-blank line and
+ 
+ from __future__ import annotations
+ 
+-from collections.abc import Mapping
++from collections.abc import Mapping, Sequence
+ from datetime import datetime
+ from typing import Any, Final
+ 
+-from dtk.core.errors import UpstreamRiskControl
++from dtk.core.errors import UpstreamChanged, UpstreamRiskControl
+ from dtk.core.types import ContentKind, Platform
+ from dtk.models import (
+     Author,
+@@ -92,6 +92,18 @@ def detect_risk_control(payload: Mapping[str, Any]) -> str | None:
+         return "verify_center"
+     if payload.get("captcha") or payload.get("verify_page"):
+         return "captcha_page"
++    # Keyword search withholds a throttled page instead of refusing it. The
++    # body comes back with an empty ``data`` list and ``has_more: 0``, which
++    # reads as "that was the last page"; the only place that says otherwise is
++    # the sibling ``search_nil_info`` block, where ``verify_check`` means the
++    # page was held back pending a check. Without this the search stops at page
++    # one and hands back a short list as if it were the whole answer - and the
++    # identity that was actually being throttled never cools down.
++    nil = payload.get("search_nil_info")
++    if isinstance(nil, Mapping):
++        for key in ("search_nil_type", "search_nil_item"):
++            if optional_str(nil.get(key)) == "verify_check":
++                return "search_nil:verify_check"
+     # A structurally valid envelope whose single payload key was emptied out.
+     # An empty ``aweme_list`` or ``comments`` is legitimate (no posts, no
+     # comments); an empty ``aweme_detail`` or ``user`` never is.
+@@ -398,6 +410,58 @@ def parse_author_posts(payload: Mapping[str, Any], *, fetched_at: datetime) -> P
+     return Page(items=items, cursor=cursor, has_more=has_more)
+ 
+ 
++def parse_search_posts(payload: Mapping[str, Any], *, fetched_at: datetime) -> Page[Content]:
++    """Parse ``/aweme/v1/web/general/search/single/``.
++
++    A search answer is a **mixed feed**: ``data`` holds posts, accounts, live
++    rooms and the occasional ad side by side, each tagged with a numeric
++    ``type``. Measured 2026-10-15 on a two-character Chinese keyword: 20
++    entries, 18 of them posts (``type`` 1) and 2 something else (``type`` 6).
++
++    Entries are selected by whether they carry an ``aweme_info`` rather than by
++    ``type``. The type numbering is undocumented and has moved between builds,
++    while the payload key is what the rest of this parser already reads - so
++    keying off the key survives a renumbering and keying off the number does
++    not.
++
++    Skipping the non-post entries is deliberate and is not the "quietly short
++    page" that ``docs/design/11-data-contracts.md`` forbids: the caller asked
++    for a keyword, not for a count, and "this keyword also matched three
++    accounts" is an ordinary answer rather than missing data. A page whose
++    entries are ALL non-posts comes back as an empty ``items`` with the cursor
++    intact, so paging still makes progress.
++
++    The cursor is the numeric ``offset`` of the next page (20 after the first
++    page of 20), stringified and opaque like every other cursor here. Note this
++    is an offset and not a timestamp, which is why it does not go through
++    :func:`~dtk.platforms.common.optional_id` - that helper folds ``"0"`` into
++    ``None``, and ``0`` is a legitimate offset that would be read as "no more".
++    """
++    root = _guard(payload)
++    items: list[Content] = []
++    raw = root.get("data")
++    # `data` is legitimately absent or empty on a keyword nothing matched, so
++    # this is a plain membership test rather than `root.present("data")` -
++    # which would turn "no results" into an upstream-changed bug report.
++    if isinstance(raw, Sequence) and not isinstance(raw, str):
++        for index, entry in enumerate(raw):
++            # An element that is not an object is not one of the mixed feed's
++            # kinds; it is a shape change, and `Node.children` reports it the
++            # same way rather than letting one fewer item through unnoticed.
++            if not isinstance(entry, Mapping):
++                raise UpstreamChanged(f"data[{index}]", platform=_NAME)
++            info = entry.get("aweme_info")
++            if isinstance(info, Mapping) and info:
++                path = f"data[{index}].aweme_info"
++                node = Node(info, path, _NAME)
++                items.append(content_from_node(node, fetched_at=fetched_at))
++    has_more = optional_bool(root.present("has_more"))
++    cursor = optional_str(root.get("cursor")) if has_more else None
++    if has_more and cursor is None:
++        raise root.missing("cursor")
++    return Page(items=items, cursor=cursor, has_more=has_more)
++
++
+ #: The ``status`` on a ``collects_list`` entry that means "anyone can open it".
+ #:
+ #: Measured 2026-09-14 on one account holding two folders it had set either
+diff --git a/src/dtk/platforms/paging.py b/src/dtk/platforms/paging.py
+index 276f510..9bdccc1 100644
+--- a/src/dtk/platforms/paging.py
++++ b/src/dtk/platforms/paging.py
+@@ -53,4 +53,32 @@ def max_page_size(platform: Platform) -> int:
+     return MAX_PAGE_SIZE[platform]
+ 
+ 
+-__all__ = ["MAX_PAGE_SIZE", "max_page_size"]
++#: The one endpoint whose ceiling is not its platform's number.
++#:
++#: Measured 2026-10-15 against the live endpoint with an imported identity:
++#:
++#:     count=30  ->  a full page, ``has_more`` true
++#:     count=31  ->  an empty ``data``, ``has_more`` false
++#:
++#: Same failure shape as TikTok's 35 above, and the more dangerous half of it:
++#: a search that is refused reads as "your keyword matched nothing", so a caller
++#: asking for 31 is told the keyword has no results at all. Douyin's ceiling for
++#: its paged lists is 50, which is why this cannot live in the platform table -
++#: the number belongs to the endpoint.
++#:
++#: A platform without an entry falls back to its platform ceiling; only Douyin
++#: serves this operation (TikTok's adapter raises ``UnsupportedContent``), so
++#: the fallback is what a future platform would want until it is measured.
++MAX_SEARCH_PAGE_SIZE: Final[Mapping[Platform, int]] = MappingProxyType(
++    {
++        Platform.DOUYIN: 30,
++    }
++)
++
++
++def max_search_page_size(platform: Platform) -> int:
++    """The page-size ceiling for keyword search on ``platform``."""
++    return MAX_SEARCH_PAGE_SIZE.get(platform, max_page_size(platform))
++
++
++__all__ = ["MAX_PAGE_SIZE", "MAX_SEARCH_PAGE_SIZE", "max_page_size", "max_search_page_size"]
+diff --git a/src/dtk/platforms/tiktok/adapter.py b/src/dtk/platforms/tiktok/adapter.py
+index 467c280..6b4d1ef 100644
+--- a/src/dtk/platforms/tiktok/adapter.py
++++ b/src/dtk/platforms/tiktok/adapter.py
+@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
+ from datetime import datetime
+ from typing import Any
+ 
++from dtk.core.errors import UnsupportedContent
+ from dtk.core.types import Platform
+ from dtk.models import Author, Collection, Comment, Content, Page
+ from dtk.platforms.base import (
+@@ -57,6 +58,23 @@ class TikTokAdapter:
+     def parse_author_list(self, payload: Mapping[str, Any]) -> Page[Author]:
+         return parser.parse_author_list(payload)
+ 
++    def parse_search_posts(
++        self, payload: Mapping[str, Any], *, fetched_at: datetime
++    ) -> Page[Content]:
++        """Keyword search is wired for Douyin only.
++
++        TikTok's own search answers through a different endpoint family with a
++        different envelope, and nothing has been measured against it here. The
++        capability is therefore not declared for this platform, and saying so
++        beats a parser written from guesswork that would fail on the first real
++        response. Same choice ``DouyinAdapter.parse_author_list`` makes in the
++        other direction.
++        """
++        raise UnsupportedContent(
++            "TikTok keyword search is not implemented in this build",
++            details={"platform": self.platform.value, "capability": "search_posts"},
++        )
++
+     def parse_author_collections(self, payload: Mapping[str, Any]) -> Page[Collection]:
+         return parser.parse_author_collections(payload)
+ 
+diff --git a/src/dtk/scheduler/policies.py b/src/dtk/scheduler/policies.py
+index e159ff6..662eed8 100644
+--- a/src/dtk/scheduler/policies.py
++++ b/src/dtk/scheduler/policies.py
+@@ -61,6 +61,14 @@ _POLICIES: dict[str, EndpointPolicy] = {
+             "douyin.author_collections", capacity=3, refill_per_sec=0.12, risk_weight=1.8
+         ),
+         EndpointPolicy("douyin.collection_posts", capacity=3, refill_per_sec=0.15, risk_weight=1.5),
++        # The one endpoint whose next request is chosen by what the last
++        # answer said rather than by a resource the caller already had. That
++        # is exactly what a person at a search box does, and exactly what a
++        # crawler walking a keyword does, so it refills slower than the list
++        # endpoints above and carries the heaviest weight in the table: a
++        # risk-control hit here should cool the identity down for longer than
++        # a hit on a page of an author's own posts.
++        EndpointPolicy("douyin.search_posts", capacity=3, refill_per_sec=0.10, risk_weight=2.5),
+         EndpointPolicy("tiktok.content_detail", capacity=5, refill_per_sec=0.30, risk_weight=1.0),
+         EndpointPolicy("tiktok.author_profile", capacity=4, refill_per_sec=0.20, risk_weight=1.2),
+         EndpointPolicy("tiktok.author_posts", capacity=3, refill_per_sec=0.12, risk_weight=1.8),
+diff --git a/src/dtk/worker/registry.py b/src/dtk/worker/registry.py
+index 737bc7a..d76d13a 100644
+--- a/src/dtk/worker/registry.py
++++ b/src/dtk/worker/registry.py
+@@ -67,6 +67,7 @@ class Capability(StrEnum):
+     MIX_POSTS = "mix_posts"
+     AUTHOR_FOLLOWERS = "author_followers"
+     AUTHOR_FOLLOWING = "author_following"
++    SEARCH_POSTS = "search_posts"
+ 
+ 
+ #: The P0 set from docs/design/11-data-contracts.md. A platform is only usable
+@@ -110,6 +111,10 @@ AUTHOR_ID: Final = "author_id"
+ UNIQUE_ID: Final = "unique_id"
+ MIX_ID: Final = "mix_id"
+ COLLECTION_ID: Final = "collection_id"
++#: A search term. Not an identifier, so it is deliberately absent from
++#: ``_ID_PARAMS``: keyword text is the one value here that must survive
++#: untransformed, being neither an id to stringify nor a count to cast.
++KEYWORD: Final = "keyword"
+ 
+ #: Every stable author id both platforms issue starts with this. It is the only
+ #: way to tell one from an @handle without asking the platform.
+@@ -211,6 +216,7 @@ _ARGUMENTS: Final[Mapping[Platform, Mapping[Capability, Mapping[str, str]]]] = {
+             CURSOR: "cursor",
+             COUNT: "count",
+         },
++        Capability.SEARCH_POSTS: {KEYWORD: "keyword", CURSOR: "cursor", COUNT: "count"},
+     },
+     Platform.TIKTOK: {
+         Capability.CONTENT_DETAIL: {CONTENT_ID: "item_id"},
+@@ -260,6 +266,8 @@ _CACHE_TTL_KEYS: Final[Mapping[Capability, str]] = MappingProxyType(
+         Capability.MIX_POSTS: "cache.list_ttl",
+         Capability.AUTHOR_FOLLOWERS: "cache.list_ttl",
+         Capability.AUTHOR_FOLLOWING: "cache.list_ttl",
++        # A search answer is a list endpoint: its ranking shifts by the hour.
++        Capability.SEARCH_POSTS: "cache.list_ttl",
+     }
+ )
+ 
+@@ -437,6 +445,11 @@ class EndpointDefinition:
+                 # One endpoint answers both, selected by a `scene` parameter, so
+                 # one parser answers for both too.
+                 return adapter.parse_author_list(payload)
++            case Capability.SEARCH_POSTS:
++                # A mixed feed rather than a plain post list: the payload holds
++                # posts, accounts and live rooms side by side, so this cannot
++                # share the group above even though it returns the same shape.
++                return adapter.parse_search_posts(payload, fetched_at=when)
+             case Capability.AUTHOR_COLLECTIONS:
+                 return adapter.parse_author_collections(payload)
+             case Capability.COLLECTION_POSTS:
+@@ -607,6 +620,7 @@ __all__ = [
+     "CURSOR",
+     "ENDPOINTS",
+     "ENVELOPE_PARAMS",
++    "KEYWORD",
+     "OPTIONAL_CAPABILITIES",
+     "P0_CAPABILITIES",
+     "UNIQUE_ID",
+diff --git a/tests/replay/test_douyin_parser.py b/tests/replay/test_douyin_parser.py
+index 66fc2fe..b5dd1d8 100644
+--- a/tests/replay/test_douyin_parser.py
++++ b/tests/replay/test_douyin_parser.py
+@@ -463,6 +463,45 @@ def test_deleted_video_is_not_mistaken_for_risk_control() -> None:
+     assert parser.detect_risk_control(fixture("video_deleted")) is None
+ 
+ 
++def test_a_withheld_search_page_is_not_the_end_of_the_list() -> None:
++    """A search block hides behind a shape that reads as "no more results".
++
++    A throttled search page comes back with an empty ``data`` list and
++    ``has_more: 0`` - byte for byte the same envelope as the genuine last page.
++    The only place that says otherwise is the sibling ``search_nil_info``
++    block, and without reading it the search truncates at whatever page the
++    platform decided to withhold, reporting a short list as if it were the
++    whole answer.
++    """
++    payload = {
++        "status_code": 0,
++        "has_more": 0,
++        "cursor": 40,
++        "data": [],
++        "log_pb": {"impr_id": "20261015181434F3AEB15EF6BAD3C0DC88"},
++        "search_nil_info": {
++            "search_nil_type": "verify_check",
++            "is_load_more": "is_load_more",
++            "search_nil_item": "verify_check",
++            "text_type": 9,
++        },
++    }
++    assert parser.detect_risk_control(payload) == "search_nil:verify_check"
++    with pytest.raises(UpstreamRiskControl) as excinfo:
++        parser.parse_search_posts(payload, fetched_at=FETCHED_AT)
++    assert excinfo.value.details["signal"] == "search_nil:verify_check"
++
++
++def test_a_search_that_found_nothing_is_still_an_honest_empty_page() -> None:
++    """The guard has to stay narrow: a keyword nobody used is not a block."""
++    payload = {"status_code": 0, "has_more": 0, "cursor": 0, "data": []}
++    assert parser.detect_risk_control(payload) is None
++    page = parser.parse_search_posts(payload, fetched_at=FETCHED_AT)
++    assert page.items == []
++    assert page.has_more is False
++    assert page.cursor is None
++
++
+ # --------------------------------------------------------------------------
+ # Truncated responses: UpstreamChanged with the exact missing path
+ # --------------------------------------------------------------------------
+diff --git a/tests/unit/test_paging.py b/tests/unit/test_paging.py
+index ad03007..068c374 100644
+--- a/tests/unit/test_paging.py
++++ b/tests/unit/test_paging.py
+@@ -15,7 +15,7 @@ from dtk.api.routes.support import MAX_PAGE_SIZE as PROJECT_CEILING
+ from dtk.api.routes.support import resolve_count
+ from dtk.core.errors import InvalidParam
+ from dtk.core.types import Platform
+-from dtk.platforms.paging import MAX_PAGE_SIZE, max_page_size
++from dtk.platforms.paging import MAX_PAGE_SIZE, max_page_size, max_search_page_size
+ 
+ 
+ def test_every_platform_states_a_ceiling() -> None:
+@@ -69,3 +69,29 @@ def test_an_omitted_count_never_exceeds_the_ceiling() -> None:
+     who passed nothing at all."""
+     assert resolve_count(None, default=20, maximum=10) == 10
+     assert resolve_count(None, default=20, maximum=35) == 20
++
++
++def test_douyin_search_refuses_more_than_thirty() -> None:
++    """The endpoint ceiling, and that it is not the platform's.
++
++    Douyin serves 50 from its author lists, so a search route that used
++    ``max_page_size`` would accept a count this endpoint cannot serve. 31 is
++    the interesting number for the same reason 36 is on TikTok: it passes every
++    other layer's check and comes back as an empty page, which the caller reads
++    as "this keyword matched nothing".
++    """
++    assert max_search_page_size(Platform.DOUYIN) == 30
++    assert max_search_page_size(Platform.DOUYIN) < max_page_size(Platform.DOUYIN)
++
++    ceiling = max_search_page_size(Platform.DOUYIN)
++    assert resolve_count(30, maximum=ceiling) == 30
++    with pytest.raises(InvalidParam) as excinfo:
++        resolve_count(31, maximum=ceiling)
++    assert excinfo.value.details["maximum"] == 30
++    assert excinfo.value.details["value"] == 31
++
++
++def test_a_platform_without_a_search_ceiling_falls_back_to_its_own() -> None:
++    """Only Douyin serves the operation today; a new platform should inherit a
++    number measured against itself, not one measured against Douyin."""
++    assert max_search_page_size(Platform.TIKTOK) == max_page_size(Platform.TIKTOK)

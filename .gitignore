@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+._*
+
+# 编辑器 / 临时文件
+*.swp
+*~
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+
+# 备份归档（体积大，不入库）
+_hub/backups/*.zip
+_hub/backups/repo-*/
+_hub/backups/_legacy/

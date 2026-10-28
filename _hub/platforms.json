@@ -1,0 +1,47 @@
+{
+  "$comment": "平台接入点配置。sync.py 读取本文件决定把技能分发到哪些目录。enabled=false 的平台默认跳过，加 --all 或 --platform id 可强制处理。",
+  "version": 1,
+  "repo": "/Users/spirit/Spirit_Skill",
+  "platforms": [
+    {
+      "id": "workbuddy",
+      "name": "WorkBuddy",
+      "skillsDir": "~/.workbuddy/skills",
+      "mode": "symlink",
+      "enabled": true,
+      "note": "受管目录：平台会往技能目录里写 _user_meta.json 并做清理。必须保持该目录本身是真实目录，只放逐技能软链接，绝不能把根目录整体换成链接。"
+    },
+    {
+      "id": "agents",
+      "name": "Agents 标准 (~/.agents)",
+      "skillsDir": "~/.agents/skills",
+      "mode": "symlink",
+      "enabled": false,
+      "note": "Anthropic Agent Skills 约定路径，多数兼容 SKILL.md 的工具会读这里。"
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "skillsDir": "~/.claude/skills",
+      "mode": "symlink",
+      "enabled": false,
+      "note": "Claude Code 用户级技能目录。"
+    },
+    {
+      "id": "codebuddy",
+      "name": "CodeBuddy CLI",
+      "skillsDir": "~/.codebuddy/skills",
+      "mode": "symlink",
+      "enabled": false,
+      "note": "CodeBuddy / Codex 系 CLI 的技能目录。"
+    },
+    {
+      "id": "dsh",
+      "name": "DeepSeek Harness",
+      "skillsDir": null,
+      "mode": "index-only",
+      "enabled": false,
+      "note": "dsh 用 cordis 插件机制（~/.dsh/profiles/*/cordis.yml），没有 SKILL.md 扫描目录。接入方式是：让 dsh 里的 agent 直接读本仓库 INDEX.md 与各技能绝对路径，或另行封装 cordis 插件。"
+    }
+  ]
+}
