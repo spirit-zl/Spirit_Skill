@@ -77,6 +77,7 @@ def scan_skills():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--fix", action="store_true", help="清理杂物文件（.DS_Store 等）")
     args = ap.parse_args()
 
     errors, warnings, infos = [], [], []
@@ -181,7 +182,18 @@ def main():
             if f == ".DS_Store" or f.endswith((".tmp", ".swp", "~")):
                 junk.append(os.path.relpath(os.path.join(dp, f), REPO))
     if junk:
-        warnings.append(f"仓库里有 {len(junk)} 个杂物文件（.DS_Store 等）")
+        if args.fix:
+            removed = 0
+            for rel in junk:
+                try:
+                    os.remove(os.path.join(REPO, rel))
+                    removed += 1
+                except OSError:
+                    pass
+            infos.append(f"已清理 {removed} 个杂物文件")
+            junk = []
+        else:
+            warnings.append(f"仓库里有 {len(junk)} 个杂物文件（.DS_Store 等，可用 --fix 清理）")
 
     # ---- 输出 ----
     if args.json:
@@ -220,6 +232,10 @@ def main():
             print(f"\n警告 {len(warnings)}:")
             for w in warnings:
                 print(f"  · {w}")
+        if infos:
+            print(f"\n已处理:")
+            for i in infos:
+                print(f"  ✓ {i}")
         if not errors and not warnings:
             print("\n全部检查通过。")
 

@@ -16,7 +16,7 @@
       "name": "Agents 标准 (~/.agents)",
       "skillsDir": "~/.agents/skills",
       "mode": "symlink",
-      "enabled": false,
+      "enabled": true,
       "note": "Anthropic Agent Skills 约定路径，多数兼容 SKILL.md 的工具会读这里。"
     },
     {

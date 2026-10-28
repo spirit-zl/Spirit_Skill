@@ -149,20 +149,31 @@ def sync_platform(platform, skills, dry_run=False, prune=False):
     # 残留/死链检查
     dead = []
     repo_real = os.path.realpath(REPO)
+
+    def under_repo(tgt):
+        """链接目标是否落在本仓库范围内（含指向已不存在路径的情况）。"""
+        if not os.path.isabs(tgt):
+            return False
+        norm = os.path.normpath(tgt)
+        return norm == repo_real or norm.startswith(repo_real + os.sep)
+
     for entry in sorted(os.listdir(target_dir)):
         fp = os.path.join(target_dir, entry)
         if not os.path.islink(fp):
             continue
         tgt = os.readlink(fp)
         if not os.path.exists(fp):
-            dead.append((entry, tgt, "死链（目标不存在）"))
-        elif entry not in skills and os.path.realpath(tgt).startswith(repo_real + os.sep):
+            owned = under_repo(tgt) or under_repo(os.path.realpath(fp))
+            dead.append((entry, tgt, "死链（指向本仓库但目标已不存在）" if owned
+                         else "死链（目标不存在，且不在本仓库范围内）"))
+        elif entry not in skills and under_repo(tgt):
             dead.append((entry, tgt, "仓库中已无此技能"))
 
     pruned = 0
     if prune and dead:
         for entry, tgt, reason in dead:
-            if reason.startswith("仓库中已无此技能"):
+            removable = reason.startswith("仓库中已无") or "指向本仓库" in reason
+            if removable:
                 if not dry_run:
                     os.remove(os.path.join(target_dir, entry))
                 pruned += 1
@@ -173,7 +184,8 @@ def sync_platform(platform, skills, dry_run=False, prune=False):
         print(f"    ! {name}: {why}")
     if dead:
         for entry, tgt, reason in dead:
-            mark = "已清理" if (prune and reason.startswith("仓库中已无")) else "警告"
+            removable = reason.startswith("仓库中已无") or "指向本仓库" in reason
+            mark = "已清理" if (prune and removable) else "警告"
             print(f"    · [{mark}] {entry}: {reason}")
     if pruned:
         print(f"  {verb}清理残留链接 {pruned} 个")
