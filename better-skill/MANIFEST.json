@@ -1,0 +1,118 @@
+{
+  "name": "better-skill",
+  "version": "1.1.0",
+  "created": "2026-10-11",
+  "changelog": {
+    "1.0.0": "初始封装",
+    "1.0.1": "自查处方两针",
+    "1.1.0": "吸收官方 skill-creator 2026-08 评测化大更新：新增 eval-loop.md 评测闭环；A 模式扩为创建全管线（选型→施工→评测→触发优化）；定格双职责默认入口"
+  },
+  "source": "本团队 Skill 工艺标准封装 + 官方 skill-creator 2026-08 六轮吸收",
+  "entry": "./SKILL.md",
+  "files": {
+    ".github/ISSUE_TEMPLATE/bug_report.md": {
+      "sha256": "66f367405977b257772c68ae7644b04f464394470d338d9d9d53fa6d7ff57c63",
+      "bytes": 420,
+      "lines": 16
+    },
+    ".github/ISSUE_TEMPLATE/skill-audit-request.md": {
+      "sha256": "c89d8aa65ec0ab26fd207a0fc031057aba57c53871b8d36e1a46b72ba8ac3e88",
+      "bytes": 641,
+      "lines": 22
+    },
+    ".gitignore": {
+      "sha256": "ec1c70d8b6c6a5fe642183baf3aa59c947a0eeadbb0093843736d220284ae0eb",
+      "bytes": 41
+    },
+    "CHANGELOG.md": {
+      "sha256": "64f8cfd0f3d397a57c3406e12a6cc87c9490b599b6f413b859fa65d10ed07e59",
+      "bytes": 1476,
+      "lines": 31
+    },
+    "CONTRIBUTING.md": {
+      "sha256": "01e71c466239bbbea42ad8576983f990796d32475d00d5310ddda15a2f2ce6f4",
+      "bytes": 1181,
+      "lines": 19
+    },
+    "LICENSE": {
+      "sha256": "4ea7f88a00315b753554071654d67704ac240f04df37c1a857967a3539b11d7d",
+      "bytes": 1072
+    },
+    "README.en.md": {
+      "sha256": "d77490b63eecc90dcd814e63116b6f2ce98a179adb780e090ac1e3d72076a052",
+      "bytes": 8896,
+      "lines": 127
+    },
+    "README.md": {
+      "sha256": "27d50b9abd2b074e7adf4b3ddc59872e2ca68f14f6d54b27440a5259244155b1",
+      "bytes": 8025,
+      "lines": 127
+    },
+    "SKILL.md": {
+      "sha256": "6ed6822a87f41a2f89b02da00cbb62c36374007f72096c6eefc66554af99e4cb",
+      "bytes": 9190,
+      "lines": 82
+    },
+    "assets/architecture.html": {
+      "sha256": "d4457aee0039692e827c4fdcfedc84b8b8d5d317738089c307cff387bb54368e",
+      "bytes": 21756,
+      "lines": 327
+    },
+    "assets/architecture.png": {
+      "sha256": "9bd7452ed4a64c498b6114a12d68a2a38b9af88f6d78f6da19e01083b7b77340",
+      "bytes": 2000133
+    },
+    "assets/banner.png": {
+      "sha256": "c5f40339e19db5005ec317c799b43f304e8a3f85821ee9995eff3264ee27663a",
+      "bytes": 1068525
+    },
+    "assets/checkup-findings.png": {
+      "sha256": "3c2b17db791c78b9bb1cbc454a3331f771aa054eb9b612d0dacede6a059cebed",
+      "bytes": 484232
+    },
+    "assets/scoring-chart.png": {
+      "sha256": "b68c9ece7abe9a690fdc8cd21d26aab9ee74ada93227bdedd18597b2181c441c",
+      "bytes": 110143
+    },
+    "examples/perfect-audit-report.md": {
+      "sha256": "faee15b98527732dca08dec6bae588be1e59064c9ea03632cf955d577dd770a8",
+      "bytes": 4911,
+      "lines": 65
+    },
+    "references/checklist.md": {
+      "sha256": "c9bf139935d11eb8035b937f93c31bee88f5a16027b3a44383322d2a3e2b055f",
+      "bytes": 10163,
+      "lines": 143
+    },
+    "references/eval-loop.md": {
+      "sha256": "17d0b3f6cb17590b4cf3e867c6994c89ede6a184bb8a34274224103f5c9f3ff1",
+      "bytes": 5634,
+      "lines": 48
+    },
+    "references/metrics.md": {
+      "sha256": "5d1e4669946093f73a24b99de3e9f6bc3ccea1779771961aa44b018c74cf337f",
+      "bytes": 5518,
+      "lines": 76
+    },
+    "references/paradigms.md": {
+      "sha256": "927d06d04945da92c81ce4e754820fe77f6f97d9d08b06fc1ceed81feb8d72a2",
+      "bytes": 4481,
+      "lines": 44
+    },
+    "references/principles.md": {
+      "sha256": "e2a29a0221e3d733983458c3c6b6bf8c1b59afef81a1e5dc42246820aab8bb92",
+      "bytes": 4207,
+      "lines": 62
+    },
+    "references/provenance.md": {
+      "sha256": "37850d357bb51552a9dbe24daa0c676b44247966820cf34054b448af94a8473e",
+      "bytes": 6037,
+      "lines": 96
+    },
+    "references/templates.md": {
+      "sha256": "c24046d832c6727f5b390c21ca13aa8509860f5f2752634863e7035d0916f3ff",
+      "bytes": 8226,
+      "lines": 129
+    }
+  }
+}

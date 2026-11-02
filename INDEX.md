@@ -1,12 +1,13 @@
 # 技能总览（INDEX）
 
 > 本文件由 `_hub/sync.py` 自动生成，请勿手工编辑。
-> 生成时间：2026-10-30 19:53:01　技能数：11
+> 生成时间：2026-11-02 14:17:59　技能数：12
 
 任何平台只要读取本文件与下列绝对路径，就能使用这些技能，无需平台原生支持。
 
 | 技能 | 一句话说明 | 路径 |
 |---|---|---|
+| `better-skill` | Skill 工艺定版标准（Better 家族·技能医生）。萃取自业内最成熟可靠的 Skill 体系——官方 300+ 技能全量审计与 skill-creator/doc-coaut… | `/Users/spirit/Spirit_Skill/better-skill/SKILL.md` |
 | `content-collect` | 根据提供的主页/关键词/作品链接采集作品信息到指定飞书表格。支持抖音（自建 dtk 实例）与小红书（受控 Chrome 复用本机登录态）两个来源，登录态自动抓取、13 字段固定契约… | `/Users/spirit/Spirit_Skill/content-collect/SKILL.md` |
 | `doc-merge-to-feishu` | 把多个本地文档（Word/PDF/Markdown/TXT/EPUB）按文件名顺序转换并写入飞书云文档，扫描版 PDF 会自动 OCR 出文字；既支持合并成一份，也支持按文件名顺序… | `/Users/spirit/Spirit_Skill/doc-merge-to-feishu/SKILL.md` |
 | `image-to-feishu-table` | 把截图里的文字原样转成可用文本：表格版面输出可粘进飞书文档并自动转成原生普通表格的 GFM 表，纯文字版面输出不带标题样式的 Markdown；当用户发来截图要转文字、识别图中文字… | `/Users/spirit/Spirit_Skill/image-to-feishu-table/SKILL.md` |
@@ -27,8 +28,8 @@
 
 ## 各平台接入状态
 
-- **WorkBuddy**：`~/.workbuddy/skills`（已接入 11 个）
-- **Agents 标准 (~/.agents)**：`~/.agents/skills`（已接入 11 个）
+- **WorkBuddy**：`~/.workbuddy/skills`（已接入 12 个）
+- **Agents 标准 (~/.agents)**：`~/.agents/skills`（已接入 12 个）
 - **Claude Code**：未接入（`~/.claude/skills` 不存在）
 - **CodeBuddy CLI**：未接入（`~/.codebuddy/skills` 不存在）
 - **DeepSeek Harness**：dsh 用 cordis 插件机制（~/.dsh/profiles/*/cordis.yml），没有 SKILL.md 扫描目录。接入方式是：让 dsh 里的 agent 直接读本仓库 INDEX.md 与各技能绝对路径，或另行封装 cordis 插件。
