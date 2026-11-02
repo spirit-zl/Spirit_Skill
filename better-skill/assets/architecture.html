@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>better-skill · 技能医生标准</title>
+<style>
+  :root{
+    --paper:#f7f1e3; --card:#fffdf4; --ink:#26303e; --line:#3a4453;
+    --navy:#16365f; --blue:#1d4ed8; --teal:#0f766e; --gold:#b45309; --red:#b91c1c; --dim:#57606f;
+    --serif:"Songti SC","STSong","Noto Serif SC",serif;
+    --hand:"Kaiti SC","STKaiti","Kai",var(--serif);
+    --disp:"Optima","Hiragino Sans GB","PingFang SC","Helvetica Neue",sans-serif;
+    --sans:-apple-system,"PingFang SC","Helvetica Neue",sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:#f7f2e8;
+    background-image:radial-gradient(circle at top left,rgba(255,255,255,0.9),transparent 42%),
+                     radial-gradient(ellipse at 100% 100%,rgba(146,64,14,0.38),transparent 58%),
+                     radial-gradient(ellipse at 92% 82%,rgba(180,83,9,0.16),transparent 42%),
+                     repeating-linear-gradient(115deg,rgba(166,124,60,0.05) 0 3px,rgba(255,255,255,0) 3px 7px),
+                     linear-gradient(135deg,#fbf6ec 0%,#f3ead7 40%,#d9c8a6 100%)}
+  body{width:100%;height:100%;overflow:hidden;font-family:var(--sans);color:var(--ink)}
+  .poster{width:1920px;height:1080px;background:transparent;position:relative;overflow:hidden;
+    padding:42px 52px 36px;display:flex;flex-direction:column}
+  .poster::before{content:"";position:absolute;inset:0;z-index:0;
+    background-image:radial-gradient(circle at top left,rgba(255,255,255,0.5),transparent 42%),
+                     radial-gradient(ellipse at 100% 100%,rgba(146,64,14,0.19),transparent 58%),
+                     radial-gradient(ellipse at 92% 82%,rgba(180,83,9,0.08),transparent 42%),
+                     repeating-linear-gradient(115deg,rgba(166,124,60,0.025) 0 3px,rgba(255,255,255,0) 3px 7px),
+                     linear-gradient(135deg,#faf5ec 0%,#f4ecd9 45%,#e6d9be 100%)}
+  .poster>*{position:relative;z-index:1}
+  .head{display:flex;justify-content:space-between;align-items:flex-start}
+  .title{font-family:var(--disp);font-size:47px;color:var(--navy);letter-spacing:.015em;font-weight:600}
+  .title .en{color:var(--gold);font-weight:600;letter-spacing:.01em}
+  .tagline{margin-top:13px}
+  .tagline .t1{font-family:var(--serif);font-size:20.5px;color:#333d4d;letter-spacing:.05em}
+  .tagline .t1 b{color:var(--gold);font-weight:700}
+  .tagline .t2{font-family:var(--hand);font-size:19px;color:#4a5568;margin-top:8px;letter-spacing:.06em}
+  .tagline .t2 em{font-style:normal;color:var(--red)}
+  .topright{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .stamp{width:112px;height:112px;border:2.5px solid var(--red);border-radius:50%;color:var(--red);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-family:var(--hand);transform:rotate(8deg);opacity:.85;background:rgba(185,28,28,.04)}
+  .stamp .b1{font-size:18px;font-weight:700;letter-spacing:.12em}
+  .stamp .b2{font-size:12px}
+  .badges{display:flex;gap:9px}
+  .badge{width:44px;height:44px;border-radius:50%;border:1.6px solid;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-family:var(--hand);background:rgba(255,253,244,.7)}
+  .badge .i{font-size:17px;line-height:1}
+  .badge .w{font-size:10px;margin-top:2px;letter-spacing:.05em}
+  .b-navy{color:var(--navy)} .b-gold{color:var(--gold)} .b-teal{color:var(--teal)} .b-red{color:var(--red)}
+  .rule{margin:18px 0 16px;border:none;border-top:2.5px solid var(--navy);position:relative}
+  .rule:after{content:"";position:absolute;left:0;right:0;top:3px;border-top:1px solid var(--navy);opacity:.5}
+  .cols{display:flex;gap:36px;flex:1;min-height:0}
+  /* ── 左：色块连线架构图 ── */
+  .flowarea{width:1088px;position:relative;flex:none}
+  .flowarea svg{position:absolute;inset:0}
+  .colcap{position:absolute;top:-6px;font-family:var(--disp);font-size:13px;letter-spacing:.28em;color:var(--dim)}
+  .node{position:absolute;border:1.6px solid var(--line);border-radius:14px;padding:12px 16px;
+    box-shadow:2px 3px 0 rgba(38,48,62,.08);transition:transform .18s ease,box-shadow .18s ease}
+  .node:hover{transform:translateY(-3px);box-shadow:4px 7px 0 rgba(38,48,62,.13)}
+  .node h4{font-family:var(--disp);font-weight:600;font-size:18.5px;letter-spacing:.02em;margin-bottom:5px}
+  .node .sub{font-family:var(--serif);font-size:13.5px;color:#3d4757;line-height:1.6}
+  .node .sub b{font-weight:700}
+  .node .sub .old{color:#98a0ad}
+  .n-blue{border-left:4px solid var(--blue);background:rgba(29,78,216,.05)} .n-blue h4{color:var(--blue)}
+  .n-teal{border-left:4px solid var(--teal);background:rgba(15,118,110,.055)} .n-teal h4{color:var(--teal)}
+  .n-gold{border-left:4px solid var(--gold);background:rgba(180,83,9,.05)} .n-gold h4{color:var(--gold)}
+  .n-navy{border-left:4px solid var(--navy);background:rgba(22,54,95,.05)} .n-navy h4{color:var(--navy)}
+  .dashed{border-style:dashed;box-shadow:none;background:rgba(255,253,244,.55)!important}
+  .mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--teal)}
+  [data-copy]{cursor:pointer;border-bottom:1px dashed var(--teal);padding-bottom:1px}
+  [data-copy]:hover{color:var(--teal)}
+  .lbl{position:absolute;font-family:var(--hand);font-size:15.5px;color:var(--red);letter-spacing:.04em;
+    background:rgba(247,241,227,.94);padding:1px 8px;border-radius:8px;white-space:nowrap;z-index:2}
+  .lbl-gray{color:var(--dim)} .lbl-teal{color:var(--teal)} .lbl-gold{color:var(--gold)} .lbl-navy{color:var(--navy)}
+  .ribbon{position:absolute;left:0;right:0;bottom:12px;border:1.6px solid var(--line);border-radius:14px;
+    background:rgba(255,253,244,.82);padding:13px 22px;display:flex;align-items:center;gap:18px;
+    box-shadow:2px 3px 0 rgba(38,48,62,.08)}
+  .ribbon .flow{font-family:var(--hand);font-size:19.5px;color:#2a3547;letter-spacing:.04em;flex:1}
+  .ribbon .flow b{color:var(--red)}
+  .ribbon .flow .a{color:var(--gold);font-family:var(--hand)}
+  .legend{font-family:var(--serif);font-size:12.5px;color:var(--dim);line-height:1.7;border-left:1px solid #d8cdb2;padding-left:18px}
+  .legend i{font-style:normal;display:inline-block;width:26px;border-top:2.2px solid var(--line);vertical-align:4px;margin-right:5px}
+  .legend i.d{border-top-style:dashed;border-color:var(--red)}
+  .legend .c1{color:var(--blue)} .legend .c2{color:var(--teal)} .legend .c3{color:var(--gold)} .legend .c4{color:var(--navy)} .legend .c5{color:var(--red)}
+  /* ── 右：解读栏 ── */
+  .right{flex:1;display:flex;flex-direction:column;gap:16px;min-width:0}
+  .panel{border:1.6px solid var(--line);border-radius:16px;background:rgba(255,253,244,.85);
+    padding:16px 20px;box-shadow:2px 3px 0 rgba(38,48,62,.08);transition:transform .18s ease,box-shadow .18s ease}
+  .panel:hover{transform:translateY(-2px);box-shadow:4px 6px 0 rgba(38,48,62,.12)}
+  .panel h4{font-family:var(--disp);font-weight:600;font-size:17.5px;color:var(--navy);margin-bottom:10px;letter-spacing:.04em;
+    display:flex;align-items:center;gap:8px}
+  .panel h4:before{content:"§";color:var(--gold);font-family:Georgia,serif}
+  .pt{display:flex;gap:12px;margin-bottom:11px}
+  .pt:last-child{margin-bottom:0}
+  .ptn{flex:none;width:26px;height:26px;border-radius:50%;border:1.6px solid currentColor;font-family:var(--disp);
+    font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .pt .tx{font-family:var(--serif);font-size:14.5px;line-height:1.7;color:#2e3846}
+  .pt .tx b{font-weight:700}
+  .pt-blue .ptn{color:var(--blue)} .pt-teal .ptn{color:var(--teal)} .pt-gold .ptn{color:var(--gold)} .pt-navy .ptn{color:var(--navy)} .pt-red .ptn{color:var(--red)}
+  .panel.mini{display:flex;gap:14px;align-items:flex-start}
+  .panel.mini .ic{font-family:var(--serif);font-size:24px;line-height:1.1}
+  .panel.mini .tx{font-family:var(--serif);font-size:13.5px;color:#4a5568;line-height:1.75}
+  .panel.mini .tx b{color:var(--ink)}
+  .panel.mini .tt{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--gold);margin-bottom:3px}
+  .watch .tt{color:var(--red)}
+  .summary{border:2px solid var(--navy);border-radius:16px;background:rgba(22,54,95,.05);padding:16px 20px}
+  .summary h4{font-family:var(--disp);font-weight:600;font-size:19px;color:var(--navy);margin-bottom:8px}
+  .summary .line{font-family:var(--hand);font-size:17px;line-height:1.85;color:#2a3547}
+  .summary .line b{color:var(--red)}
+  .foot{margin-top:auto;font-family:var(--serif);font-size:12.5px;color:var(--dim);line-height:1.75;padding-top:8px}
+  a.plain{color:var(--teal);text-decoration:none;border-bottom:1px dotted var(--teal)}
+  .copytoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--navy);color:#fff;
+    font-family:var(--sans);font-size:13px;padding:7px 16px;border-radius:99px;opacity:0;pointer-events:none;
+    transition:opacity .2s ease;z-index:9}
+  .copytoast.on{opacity:.95}
+  .hint{position:fixed;left:18px;bottom:14px;font-family:var(--hand);font-size:13px;color:#8a7a55;
+    opacity:.85;transition:opacity .6s ease;z-index:9}
+  .hint.fade{opacity:0}
+  :focus-visible{outline:2.5px solid var(--gold);outline-offset:3px;border-radius:6px}
+  @media print{ @page{size:508mm 285.7mm landscape;margin:0} .noprint{display:none!important} }
+  @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+</head>
+
+<body>
+<div class="poster" id="poster">
+
+  <div class="head">
+    <div>
+      <div class="title"><span class="en">better-skill</span> · 技能医生标准</div>
+    </div>
+    <div class="tagline" style="text-align:right;padding-top:16px">
+      <div class="t1">萃取自官方 <b>300+</b> 技能全量审计 —— 五轮对抗定版，对撞 <b>96 vs 85</b>。</div>
+      <div class="t2">别人教你怎么写技能，这份管的是标准：<em>先诊断，后开方。</em></div>
+    </div>
+  </div>
+  <hr class="rule">
+
+  <div class="cols">
+    <div class="flowarea">
+      <svg width="1088" height="846" viewBox="0 0 1088 846">
+        <defs>
+          <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0.5 L8,4.5 L0,8.5" fill="none" stroke="#3a4453" stroke-width="1.8" stroke-linecap="round"/>
+          </marker>
+          <marker id="ahr" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0.5 L8,4.5 L0,8.5" fill="none" stroke="#b91c1c" stroke-width="1.8" stroke-linecap="round"/>
+          </marker>
+          <marker id="ahn" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0.5 L8,4.5 L0,8.5" fill="none" stroke="#16365f" stroke-width="1.8" stroke-linecap="round"/>
+          </marker>
+        </defs>
+        <!-- 证据 → 路由 -->
+        <path d="M260,82 C320,82 340,58 386,56" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M260,202 C320,202 342,62 386,60" fill="none" stroke="#3a4453" stroke-width="2" marker-end="url(#ah)"/>
+        <path d="M260,310 C330,310 348,66 386,64" fill="none" stroke="#3a4453" stroke-width="2" marker-end="url(#ah)"/>
+        <path d="M260,418 C340,418 354,70 386,68" fill="none" stroke="#3a4453" stroke-width="2" marker-end="url(#ah)"/>
+        <!-- skill-creator 借力 → C -->
+        <path d="M260,526 C330,526 356,470 386,462" fill="none" stroke="#16365f" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#ahn)"/>
+        <!-- 生命周期脊柱 -->
+        <path d="M540,110 L540,126" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M540,250 L540,266" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M540,390 L540,406" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M540,530 L540,546" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <!-- 四诊所 → 产出 -->
+        <path d="M690,188 L786,188" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M690,328 L786,328" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M690,467 L786,467" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <path d="M690,597 L786,597" fill="none" stroke="#3a4453" stroke-width="2.2" marker-end="url(#ah)"/>
+        <!-- 宪法守护（红） -->
+        <path d="M240,616 C330,616 342,392 386,382" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#ahr)"/>
+        <path d="M240,654 C340,654 350,576 386,570" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#ahr)"/>
+      </svg>
+
+      <div class="colcap" style="left:0">证 据 基 座 · 萃 取</div>
+      <div class="colcap" style="left:390px">四 诊 所 · 生 命 周 期</div>
+      <div class="colcap" style="left:790px">产 出 · 消 费</div>
+
+      <div class="node n-blue" style="left:0;top:30px;width:260px;height:104px">
+        <h4>官方技能全量审计</h4><div class="sub">332 个 · 调用模式盘点<br>优先级按真实用法排出</div>
+      </div>
+      <div class="node n-blue" style="left:0;top:150px;width:260px;height:104px">
+        <h4>旗舰案例深拆</h4><div class="sub">skill-creator 等五件<br>深拆至范式与红线层</div>
+      </div>
+      <div class="node n-blue" style="left:0;top:270px;width:260px;height:80px">
+        <h4>三源交叉测评 · S 级</h4><div class="sub">官方 × 工厂方法论 × 本标准</div>
+      </div>
+      <div class="node n-blue" style="left:0;top:366px;width:260px;height:104px">
+        <h4>对撞定版 96:85</h4><div class="sub">vs 官方 skill-creator<br>方法与局限已存档</div>
+      </div>
+      <div class="node dashed" style="left:0;top:486px;width:260px;height:80px;border-color:var(--navy)">
+        <h4 style="color:var(--navy)">skill-creator 借力</h4><div class="sub">2026-08 评测闭环 · 协同</div>
+      </div>
+      <div class="node dashed" style="left:0;top:586px;width:260px;height:104px;border-color:var(--red)">
+        <h4 style="color:var(--red)">医生宪法 · 守护</h4>
+        <div class="sub">先诊后治 · 未读即 NULL<br>水位线诚实 · 不越界</div>
+      </div>
+
+      <div class="node n-teal" style="left:390px;top:30px;width:300px;height:80px">
+        <h4>接诊路由</h4><div class="sub">意图分流四模式 · 模糊默认体检</div>
+      </div>
+      <div class="node n-teal" style="left:390px;top:126px;width:300px;height:124px">
+        <h4>A 创建 · 全管线</h4>
+        <div class="sub">选型 → 定级 → 蓝图 → 施工<br>评测闭环 → 触发优化<br><b>技能创建默认入口</b></div>
+      </div>
+      <div class="node n-teal" style="left:390px;top:266px;width:300px;height:124px">
+        <h4>B 体检 · 默认入口</h4>
+        <div class="sub">四层 P0/P1/P2 扫描<br><b>21 条红线</b>（10 止 11 修）<br>发现必带证据行号</div>
+      </div>
+      <div class="node n-teal" style="left:390px;top:406px;width:300px;height:124px">
+        <h4>C 处方 · 靶向补丁</h4>
+        <div class="sub">强制前置体检报告<br>str_replace 级最小 diff<br>修后自动复诊</div>
+      </div>
+      <div class="node n-teal" style="left:390px;top:546px;width:300px;height:102px">
+        <h4>D 会诊 · 统一标尺</h4>
+        <div class="sub">ZSAR / 触发 / 往返 / Token 占用量 / 自治<br>出保留 · 合并 · 退役裁决</div>
+      </div>
+
+      <div class="node n-navy" style="left:790px;top:126px;width:298px;height:124px">
+        <h4>新技能 · 带评测数据</h4>
+        <div class="sub">触发优化的 description<br>with/without 对照评分<br>基准表与 Token 占用量</div>
+      </div>
+      <div class="node n-navy" style="left:790px;top:266px;width:298px;height:102px">
+        <h4>体检报告</h4>
+        <div class="sub">发现带证据行号＋优先级<br>无发现写明「通过」</div>
+      </div>
+      <div class="node n-navy" style="left:790px;top:406px;width:298px;height:102px">
+        <h4>最小 diff 补丁</h4>
+        <div class="sub">一条补丁一个最小改动<br>复诊前后对比报告</div>
+      </div>
+      <div class="node n-navy" style="left:790px;top:546px;width:298px;height:102px">
+        <h4>雷达对比＋裁决</h4>
+        <div class="sub">五维雷达一句话裁决<br>保留 / 合并 / 退役建议</div>
+      </div>
+      <div class="node n-gold dashed" style="left:790px;top:664px;width:298px;height:80px">
+        <h4>Better 家族 · 排班</h4>
+        <div class="sub">truman-skills 每周一岗</div>
+      </div>
+
+      <div class="lbl" style="left:300px;top:50px">萃取</div>
+      <div class="lbl lbl-navy" style="left:300px;top:478px">借力</div>
+      <div class="lbl" style="left:556px;top:112px">分流</div>
+      <div class="lbl" style="left:722px;top:166px">交付</div>
+      <div class="lbl" style="left:268px;top:612px;color:var(--red)">守护</div>
+
+      <div class="ribbon">
+        <div class="flow">造前咨询 → 施工 → 评测 → 触发优化 → 体检 → 处方 → 会诊（全生命周期管线）<br><b>没有体检报告，禁止动刀。</b></div>
+        <div class="legend">
+          <div><i></i>实线＝主流程（生命周期）　<i class="d"></i>虚线＝守护／协同</div>
+          <div><span class="c1">蓝＝证据基座</span> · <span class="c2">青＝诊所与检查</span> · <span class="c3">金＝版本与排班</span> · <span class="c4">深蓝＝产出</span> · <span class="c5">红＝看门狗（宪法）</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;justify-content:space-between">
+        <h4>划重点 · 大白话</h4>
+        <div class="pt pt-blue"><div class="ptn">1</div><div class="tx"><b>先诊断，后开方。</b>处方必须指回体检报告的具体条目——指不回，就是医疗事故。</div></div>
+        <div class="pt pt-teal"><div class="ptn">2</div><div class="tx"><b>证据优先。</b>没读过的文件视为 NULL，禁止猜测目标技能的内容、路径、依赖。</div></div>
+        <div class="pt pt-gold"><div class="ptn">3</div><div class="tx"><b>外科手术式修改。</b>只开 str_replace 级靶向补丁，严禁全量重印（初始创建除外）。</div></div>
+        <div class="pt pt-navy"><div class="ptn">4</div><div class="tx"><b>水位线诚实。</b>引用触发率≥90%、ZSAR≥85% 等指标必须注明「官方库水位线」，有本地实测才用实测。</div></div>
+        <div class="pt pt-red"><div class="ptn">5</div><div class="tx"><b>不越界。</b>不做物理打包、不做收录分发——组合去留归仓管（生态分工，见 SKILL.md §3）。</div></div>
+      </div>
+
+      <div class="panel mini">
+        <div class="ic" style="color:var(--gold)">⚠</div>
+        <div><div class="tt">一个例外</div><div class="tx"><b>「不改动」也是裁决。</b>实战四技能体检中，「描述性中文」被判为设计意图而非缺陷——医生知道什么时候<b>不动刀</b>。</div></div>
+      </div>
+      <div class="panel mini watch">
+        <div class="ic" style="color:var(--red)">◉</div>
+        <div><div class="tt watch">兜底</div><div class="tx"><b>意图模糊 → 默认 B 体检</b>——体检是最安全的默认动作。批量 ≥3 个先报清单、预计工作量，你点头再开工。</div></div>
+      </div>
+
+      <div class="summary">
+        <h4>一句话记住</h4>
+        <div class="line">先诊断后开方，<b>没有体检报告不动刀</b>；改就改最小，量就量水位——技能不是写得越多越好，是活得越久越好。</div>
+      </div>
+
+      <div class="foot">
+        依据：references/provenance.md（评分方法与局限已存档）· 协同：官方 skill-creator 2026-08（评测闭环借力）<br>
+        入口：SKILL.md · 家族：truman-skills（每周一岗） · better-skill v1.1.0<br>
+        License MIT · © 2026 YTruman
+      </div>
+    </div>
+  </div>
+
+  <div class="copytoast" id="toast">已复制到剪贴板</div>
+  <div class="hint noprint" id="hint">＋ / － 缩放 · 0 复位</div>
+</div>
+
+<script>
+(function(){
+  var poster=document.getElementById('poster');
+  var user=1;
+  var base=function(){ return Math.min(innerWidth/1920, innerHeight/1080); };
+  function fit(){
+    var sc=base()*user;
+    poster.style.position='fixed';
+    poster.style.left='50%'; poster.style.top='50%';
+    poster.style.transform='translate(-50%,-50%) scale('+sc+')';
+  }
+  if(location.hash.indexOf('shot')>-1){ var h0=document.getElementById('hint'); if(h0) h0.style.display='none'; }
+  window.addEventListener('resize',fit);
+  window.addEventListener('keydown',function(e){
+    if(e.key==='+'||e.key==='=') user=Math.min(2.5,user*1.15);
+    else if(e.key==='-'||e.key==='_') user=Math.max(0.4,user/1.15);
+    else if(e.key==='0') user=1;
+    else return;
+    fit();
+  });
+  var toast=document.getElementById('toast'); var tt=null;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-copy]'),function(el){
+    el.addEventListener('click',function(){
+      if(navigator.clipboard) navigator.clipboard.writeText(el.getAttribute('data-copy'));
+      toast.classList.add('on'); clearTimeout(tt); tt=setTimeout(function(){toast.classList.remove('on');},950);
+    });
+  });
+  var hint=document.getElementById('hint');
+  setTimeout(function(){ if(hint) hint.classList.add('fade'); },5200);
+  fit();
+})();
+</script>
+</body>
+</html>
