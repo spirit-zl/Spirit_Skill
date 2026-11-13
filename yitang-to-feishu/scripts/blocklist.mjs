@@ -295,18 +295,29 @@ async function worker() {
     const img = list[n];
     if (!img.src || img.src.startsWith('data:')) continue;
     try { results.set(img.idx, await download(img, String(n + 1).padStart(3, '0'))); }
-    catch (e) { console.error(`图片 ${n + 1} 失败：${e.message}`); results.set(img.idx, { file: null }); }
+    catch (e) { console.error(`图片 ${n + 1} 失败：${e.message}`); results.set(img.idx, { file: null, error: e.message }); }
   }
 }
 await Promise.all(Array.from({ length: 6 }, () => worker()));
 
+// 下载不了时：链接本身是死的（404 / 没有文件名）就别再留远程 URL——
+// 飞书侧同样取不到，只会留下一个破图；改成一行说明更清楚（2026-10-31 加）
+const DEAD_NOTE = '*（原文档此处有一个媒体内容，链接已失效，未能取回）*';
+const isDeadSrc = (src, err) => {
+  if (!src) return true;
+  if (/HTTP 404/.test(err || '')) return true;
+  try { return !path.basename(new URL(src).pathname); } catch { return true; }
+};
 let mdLocal = md, mdFeishu = md;
 for (const img of list) {
   const r = results.get(img.idx);
   const key = `{{IMG_${String(img.idx).padStart(4, '0')}}}`;
   const alt = (img.alt || '').replace(/[\[\]\n]/g, ' ').trim();
-  mdLocal = mdLocal.split(key).join(r && r.file ? `![${alt}](images/${r.file})` : `![${alt}](${img.src})`);
-  mdFeishu = mdFeishu.split(key).join(r && r.file ? `![${alt}](@./images/${r.file})` : `![${alt}](${img.src})`);
+  const dead = isDeadSrc(img.src, r && r.error);
+  const local = r && r.file ? `![${alt}](images/${r.file})` : (dead ? DEAD_NOTE : `![${alt}](${img.src})`);
+  const feishu = r && r.file ? `![${alt}](@./images/${r.file})` : (dead ? DEAD_NOTE : `![${alt}](${img.src})`);
+  mdLocal = mdLocal.split(key).join(local);
+  mdFeishu = mdFeishu.split(key).join(feishu);
 }
 mdLocal = mdLocal.replace(/\{\{IMG_[\d_]*\}?\}?/g, '');
 mdFeishu = mdFeishu.replace(/\{\{IMG_[\d_]*\}?\}?/g, '');
