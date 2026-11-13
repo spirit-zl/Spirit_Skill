@@ -1,7 +1,7 @@
 # 技能总览（INDEX）
 
 > 本文件由 `_hub/sync.py` 自动生成，请勿手工编辑。
-> 生成时间：2026-11-02 14:17:59　技能数：12
+> 生成时间：2026-11-13 11:34:45　技能数：13
 
 任何平台只要读取本文件与下列绝对路径，就能使用这些技能，无需平台原生支持。
 
@@ -17,6 +17,7 @@
 | `reading-notes` | 为书籍生成结构化读书笔记并归档到飞书云文档文件夹。按内置四类提示词模板（科学知识类9节、想象文学类5节、历史题材9节、人物传记9节）逐节生成 Markdown 笔记（主标题为书名本… | `/Users/spirit/Spirit_Skill/reading-notes/SKILL.md` |
 | `skill-architect` | 把用户创建skill的需求转成高质量的SKILL.md文件，或者把用户已有的SKILL.md进行审查评分并给出优化建议；当用户说创建/帮我写/生成 Skill 或优化/检查/看看 … | `/Users/spirit/Spirit_Skill/skill-architect/SKILL.md` |
 | `skill-portability` | 把一个已经能跑但绑定了本机环境的技能（或脚本项目）改造成跨平台、可发布到 git 的仓库。当用户要求「做成跨平台的 / 跨系统的 / 换台机器也能用 / 发布到 git / 开源出… | `/Users/spirit/Spirit_Skill/skill-portability/SKILL.md` |
+| `sztg-replay-digest` | 抓取策牛科技（app.cn.sztg.com）直播回放的音轨并转写成要点，按固定体例生成一期内容并前插到指定飞书文档最前面；当用户发来 sztg / 策牛 / 趋势复利 的直播或回… | `/Users/spirit/Spirit_Skill/sztg-replay-digest/SKILL.md` |
 | `wechat-article-collect` | 微信公众号文章采集：以飞书多维表格为驱动，按第一列「文章链接」抓取正文，提取发表日期、文章标题、文章正文（去掉广告、自我介绍等无关内容）和不超过 200 汉字的文章精华，缺列自动补… | `/Users/spirit/Spirit_Skill/wechat-article-collect/SKILL.md` |
 | `yitang-to-feishu` | 把一堂课件（yitang.top 的 fs-doc 课程文档）或普通网页抓成 Markdown 并发布到指定飞书云文档目录，图片全部下载后按原位置内联、可附整页长截图；同时适用于公… | `/Users/spirit/Spirit_Skill/yitang-to-feishu/SKILL.md` |
 
@@ -28,8 +29,8 @@
 
 ## 各平台接入状态
 
-- **WorkBuddy**：`~/.workbuddy/skills`（已接入 12 个）
-- **Agents 标准 (~/.agents)**：`~/.agents/skills`（已接入 12 个）
+- **WorkBuddy**：`~/.workbuddy/skills`（已接入 13 个）
+- **Agents 标准 (~/.agents)**：`~/.agents/skills`（已接入 13 个）
 - **Claude Code**：未接入（`~/.claude/skills` 不存在）
 - **CodeBuddy CLI**：未接入（`~/.codebuddy/skills` 不存在）
 - **DeepSeek Harness**：dsh 用 cordis 插件机制（~/.dsh/profiles/*/cordis.yml），没有 SKILL.md 扫描目录。接入方式是：让 dsh 里的 agent 直接读本仓库 INDEX.md 与各技能绝对路径，或另行封装 cordis 插件。
