@@ -83,9 +83,13 @@ def check_lark():
         r = subprocess.run([p, "auth", "status"], capture_output=True, text=True)
         st = json.loads(r.stdout)
         user = st.get("identities", {}).get("user", {})
+        msg = str(user.get("message") or "")
         if user.get("status") == "ready":
             return True, f"user {user.get('userName')} ready"
-        return False, f"lark-cli 用户身份未就绪：{user.get('message')}"
+        # 「needs refresh」是待刷新状态，lark-cli 会在下一次用户态调用时自动续期，不算缺失
+        if "needs refresh" in msg.lower():
+            return True, f"user {user.get('userName')} 待自动刷新（下次调用时续期）"
+        return False, f"lark-cli 用户身份未就绪：{msg}"
     except Exception as e:
         return False, f"lark-cli 状态读取失败: {e}"
 
